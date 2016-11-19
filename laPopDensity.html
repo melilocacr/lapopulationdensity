@@ -28,19 +28,25 @@
 <body>
 
     <h1>Louisiana Population Density, 2016</h1>
+
+    <!--Toggle color button-->
+    <input class="color" type="button" name="color_change" value="Toggle Color">
+
+    <!--Toggle show boundaries button-->
+    <input class="boundary" type="button" name="boundary_change" value="Toggle Boundary">
+
     <script src="//d3js.org/d3.v3.min.js"></script>
     <script src="//d3js.org/topojson.v1.min.js"></script>
     <script src="https://d3js.org/d3-geo.v1.min.js"></script>
     <script src="https://d3js.org/d3-geo-projection.v1.min.js"></script>
     <script>
+        //Toggle color and boundary variables
+        var changeColor = false;
+        var showBoundary = true;
         var width = 960,
             height = 1100;
 
         var formatNumber = d3.format(",d");
-
-        //        var projection = d3.geo.albersUsa()
-        //            .scale(7000)
-        //            .translate([-500, 1200]);
 
         var projection_data = {
             center: [0, 31],
@@ -66,8 +72,8 @@
         d3.select("input.color").on("click", toggleColor);
         d3.select("input.boundary").on("click", toggleBoundary);
 
+        //The following code I got with assistance from another classmate, Ryan Teves
         function toggleColor() {
-
             changeColor = !changeColor;
 
             if (changeColor) {
@@ -84,6 +90,7 @@
 
         //Toggle showBoundary boolean true or false
         function toggleBoundary() {
+            console.log("toggling boundary...")
             showBoundary = !showBoundary;
             refresh(); //refresh map
         }
@@ -106,78 +113,83 @@
             .attr("width", width)
             .attr("height", height);
 
-        var g = svg.append("g")
-            .attr("class", "key")
-            .attr("transform", "translate(440,40)");
+        refresh();
 
-        g.selectAll("rect")
-            .data(color.range().map(function(d, i) {
-                return {
-                    x0: i ? x(color.domain()[i - 1]) : x.range()[0],
-                    x1: i < color.domain().length ? x(color.domain()[i]) : x.range()[1],
-                    z: d
-                };
-            }))
-            .enter().append("rect")
-            .attr("height", 8)
-            .attr("x", function(d) {
-                return d.x0;
-            })
-            .attr("width", function(d) {
-                return d.x1 - d.x0;
-            })
-            .style("fill", function(d) {
-                return d.z;
-            });
+        function refresh() {
+            var g = svg.append("g")
+                .attr("class", "key")
+                .attr("transform", "translate(440,40)");
 
-        g.call(xAxis).append("text")
-            .attr("class", "caption")
-            .attr("y", -6)
-            .text("Population per square mile");
-
-        d3.json("la.json", function(error, la) {
-
-            console.log(la.objects["LA-COUNTY"]);
-            var tracts = topojson.feature(la, la.objects.tracts);
-
-            // Clip tracts to land.
-            svg.append("defs").append("clipPath")
-                .attr("id", "clip-land")
-                .append("path")
-                .datum(topojson.feature(la, la.objects["LA-COUNTY"]))
-                .attr("d", path);
-
-            // Group tracts by color for faster rendering.
-            svg.append("g")
-                .attr("class", "tract")
-                .attr("clip-path", "url(#clip-land)")
-                .selectAll("path")
-                .data(d3.nest()
-                    .key(function(d) {
-                        return color(d.properties.population / d.properties.area * 2.58999e6);
-                    })
-                    .entries(tracts.features.filter(function(d) {
-                        return d.properties.area;
-                    })))
-                .enter().append("path")
-                .style("fill", function(d) {
-                    return d.key;
+            g.selectAll("rect")
+                .data(color.range().map(function(d, i) {
+                    return {
+                        x0: i ? x(color.domain()[i - 1]) : x.range()[0],
+                        x1: i < color.domain().length ? x(color.domain()[i]) : x.range()[1],
+                        z: d
+                    };
+                }))
+                .enter().append("rect")
+                .attr("height", 8)
+                .attr("x", function(d) {
+                    return d.x0;
                 })
-                .attr("d", function(d) {
-                    return path({
-                        type: "FeatureCollection",
-                        features: d.values
-                    });
+                .attr("width", function(d) {
+                    return d.x1 - d.x0;
+                })
+                .style("fill", function(d) {
+                    return d.z;
                 });
 
-            // Draw county borders.
-            svg.append("path")
-                .datum(topojson.mesh(la, la.objects["LA-COUNTY"], function(a, b) {
-                    return a !== b;
-                }))
-                .attr("class", "county-border")
-                .attr("d", path);
-        });
+            g.call(xAxis).append("text")
+                .attr("class", "caption")
+                .attr("y", -6)
+                .text("Population per square mile");
+
+            d3.json("la.json", function(error, la) {
+
+                var tracts = topojson.feature(la, la.objects.tracts);
+
+                // Clip tracts to land.
+                svg.append("defs").append("clipPath")
+                    .attr("id", "clip-land")
+                    .append("path")
+                    .datum(topojson.feature(la, la.objects["LA-COUNTY"]))
+                    .attr("d", path);
+
+                // Group tracts by color for faster rendering.
+                svg.append("g")
+                    .attr("class", "tract")
+                    .attr("clip-path", "url(#clip-land)")
+                    .selectAll("path")
+                    .data(d3.nest()
+                        .key(function(d) {
+                            return color(d.properties.population / d.properties.area * 2.58999e6);
+                        })
+                        .entries(tracts.features.filter(function(d) {
+                            return d.properties.area;
+                        })))
+                    .enter().append("path")
+                    .style("fill", function(d) {
+                        return d.key;
+                    })
+                    .attr("d", function(d) {
+                        return path({
+                            type: "FeatureCollection",
+                            features: d.values
+                        });
+                    });
+
+                //Toggle show boundary
+                if (showBoundary) {
+                    svg.append("path")
+                        .datum(topojson.mesh(la, la.objects["LA-COUNTY"], function(a, b) {
+                            return a !== b;
+                        }))
+                        .attr("class", "county-border")
+                        .attr("d", path);
+                }
+            });
+        }
 
         d3.select(self.frameElement).style("height", height + "px");
     </script>
@@ -189,3 +201,5 @@
 
     </div>
 </body>
+
+</html>
